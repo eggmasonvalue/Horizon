@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    
+    <!-- Dark background -->
+    <path
+        android:fillColor="#0A0A0A"
+        android:pathData="M0,0 h512 v512 h-512 z"/>
+    
+    <!-- Grid of dots representing years - past years (blue) -->
+    <path
+        android:fillColor="#4A90E2"
+        android:pathData="M64,64 h32 v32 h-32 z M112,64 h32 v32 h-32 z M160,64 h32 v32 h-32 z M208,64 h32 v32 h-32 z M256,64 h32 v32 h-32 z
+                         M64,112 h32 v32 h-32 z M112,112 h32 v32 h-32 z M160,112 h32 v32 h-32 z M208,112 h32 v32 h-32 z M256,112 h32 v32 h-32 z
+                         M64,160 h32 v32 h-32 z M112,160 h32 v32 h-32 z M160,160 h32 v32 h-32 z M208,160 h32 v32 h-32 z M256,160 h32 v32 h-32 z
+                         M64,208 h32 v32 h-32 z M112,208 h32 v32 h-32 z M160,208 h32 v32 h-32 z M208,208 h32 v32 h-32 z M256,208 h32 v32 h-32 z
+                         M64,256 h32 v32 h-32 z M112,256 h32 v32 h-32 z M160,256 h32 v32 h-32 z M208,256 h32 v32 h-32 z M256,256 h32 v32 h-32 z"/>
+    
+    <!-- Current year (gold, pulsing) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M304,64 h32 v32 h-32 z"/>
+    
+    <!-- Future years (dimmed blue) -->
+    <path
+        android:fillColor="#4D4A90E2"
+        android:pathData="M352,64 h32 v32 h-32 z M400,64 h32 v32 h-32 z
+                         M304,112 h32 v32 h-32 z M352,112 h32 v32 h-32 z M400,112 h32 v32 h-32 z
+                         M304,160 h32 v32 h-32 z M352,160 h32 v32 h-32 z M400,160 h32 v32 h-32 z
+                         M304,208 h32 v32 h-32 z M352,208 h32 v32 h-32 z M400,208 h32 v32 h-32 z
+                         M304,256 h32 v32 h-32 z M352,256 h32 v32 h-32 z M400,256 h32 v32 h-32 z
+                         M64,304 h32 v32 h-32 z M112,304 h32 v32 h-32 z M160,304 h32 v32 h-32 z M208,304 h32 v32 h-32 z M256,304 h32 v32 h-32 z M304,304 h32 v32 h-32 z M352,304 h32 v32 h-32 z M400,304 h32 v32 h-32 z
+                         M64,352 h32 v32 h-32 z M112,352 h32 v32 h-32 z M160,352 h32 v32 h-32 z M208,352 h32 v32 h-32 z M256,352 h32 v32 h-32 z M304,352 h32 v32 h-32 z M352,352 h32 v32 h-32 z M400,352 h32 v32 h-32 z
+                         M64,400 h32 v32 h-32 z M112,400 h32 v32 h-32 z M160,400 h32 v32 h-32 z M208,400 h32 v32 h-32 z M256,400 h32 v32 h-32 z M304,400 h32 v32 h-32 z M352,400 h32 v32 h-32 z M400,400 h32 v32 h-32 z"/>
+</vector>

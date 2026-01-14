@@ -1,0 +1,64 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+build/
+.gradle/
+.cxx/
+.externalNativeBuild/
+
+# Android Studio / IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+local.properties
+.DS_Store
+captures/
+*.hprof
+
+# NDK
+obj/
+
+# Agent & Tools
+.agent/
+.gemini/
+brain/
+artifacts/
+tools/
+android-sdk/
+gradle/
+!gradle/wrapper/
+
+# Documentation & Notes
+TOOLS_README.md
+DEV_NOTES.md
+
+# Logs and Temporary Build Files
+*.log
+*.ps1
+*.bat
+!gradlew.bat
+deploy_app.ps1
+setup_env.ps1
+setup_gradle.ps1
+setup_sdk.ps1
+verify_adb.bat
+
+# Specific Junk Files in Subdirectories
+**/build_info.txt
+**/build_output*.txt
+**/kotlin_debug.txt
+**/kotlin_errors.txt

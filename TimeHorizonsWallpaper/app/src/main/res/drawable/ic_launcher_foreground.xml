@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Horizon Line (Curved for modern feel) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M18,65 Q54,60 90,65 L90,67 Q54,62 18,67 Z" />
+        
+    <!-- Sun/Moon Circle (Minimalist) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,48 m-12,0 a12,12 0 1,1 24,0 a12,12 0 1,1 -24,0" />
+        
+    <!-- Reflection/Grid Hint (Three dots below) -->
+    <path
+        android:fillColor="#80FFFFFF"
+        android:pathData="M54,72 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0" />
+    <path
+        android:fillColor="#60FFFFFF"
+        android:pathData="M54,78 m-1.5,0 a1.5,1.5 0 1,1 3,0 a1.5,1.5 0 1,1 -3,0" />
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M54,83 m-1,0 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0" />
+        
+</vector>
