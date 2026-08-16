@@ -1,6 +1,6 @@
 # Perspective - Live 🌅
 
-**Perspective - Live** is a minimalist Live Wallpaper engine that transforms abstract time into a tangible visual landscape. Designed for those who live with intention, ambition, and a clear vision of the future.
+**Perspective - Live** is a minimalist Live Wallpaper engine for Android that transforms abstract time into a tangible visual landscape. Designed for those who live with intention, ambition, and a clear vision of the future.
 
 [![Website](https://img.shields.io/badge/website-perspective--live-orange.svg)](https://eggmasonvalue.github.io/Perspective-Live-Wallpaper/)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -11,48 +11,79 @@
 
 ## 🌌 The Concept
 
-Time famously "flies". **Perspective - Live** renders it as a precise, modular grid of geometry, allowing you a frequent dose of perspective at a glance.
+Time famously flies. **Perspective - Live** renders time as a precise, modular grid of geometry, delivering a frequent dose of perspective at a glance.
 
 ### 🔭 Macro (Life Calendar)
+
 Your life clock on your lock screen.
+
 - **The Grid**: Each unit represents **one year**.
-- **The Goal**: Visualize how much life you've lived vs. what you might have left.
+- **The Goal**: Visualize how much life you have lived versus what you might have left.
 
 ### 🚀 Micro (Day Counter)
-Focus your energy on the immediate future.
+
+Focus energy on the immediate future.
+
 - **The Grid**: Each unit represents **one day**.
 - **The Modes**:
-    - **"There is no tomorrow"**: one visible shape for today (breathing).
-    - **"You vs. You (yesterday)"**: Two visible shapes - one for today (breathing) and one for yesterday.
-    - **"Custom"**: classic deadline tracking.
-- **Health Connect Integration**: Link your daily physical effort directly into the grid.
-    - **Metrics**: Track **Steps**, **Calories**, **Distance**, or **Sleep**.
-    - **Visualization**: Past days automatically map their fill opacity to your daily goal progress. The current day retains its signature pulse animation. Add an optional, subtle typographic overlay to see the raw metric inside the shape.
+  - **"There is no tomorrow"**: Single visible shape for today (breathing animation).
+  - **"You vs. You (yesterday)"**: Two visible shapes — one for today (breathing) and one for yesterday.
+  - **"Custom"**: Goal and deadline tracking across custom date ranges.
+- **Health Connect Integration**: Link daily physical effort directly into the grid.
+  - **Metrics**: Track **Steps**, **Calories**, **Distance**, or **Sleep**.
+  - **Visualization**: Past days automatically map fill opacity to goal progress while the current day pulses. An optional typographic overlay displays raw metric values inside the shapes.
 
 ## ✨ Features
 
 ### 🎨 Deep Customization
-Make the horizon yours with the new **Style** engine:
-- **Shape Shifting**: Choose your primitive—**Circle**, **Rounded Square** (Classic), or **Rhombus** (Rotated Square).
-- **Density Control**: Adjust the grid scale from **0.5x** (airy, minimalist) to **1.0x** (dense, data-rich).
-- **Container Padding**: Fine-tune the margin around the grid for perfect alignment with your device's bezels.
-- **Colors**: Defaulting to the **Iconic** scheme (Sage/Red/Beige), you can also choose from presets or define your own custom palette.
-- **System Theme**: Adapts to Material You (Monet) on supported devices.
+
+Customize the aesthetic via the built-in **Style** sheet:
+
+- **Shape Shifting**: Choose between **Circle**, **Rounded Square**, or **Rhombus** (rotated square).
+- **Density Control**: Adjust grid scale from **0.5x** (airy, minimalist) to **1.0x** (dense, data-rich).
+- **Container Padding**: Fine-tune margins around the grid for device bezels.
+- **Colors**: Defaulting to the **Iconic** palette (Sage/Red/Beige), alongside health presets, system dynamic theming, and custom palettes.
+- **Material You**: Dynamic wallpaper color extraction on supported Android versions.
 
 ### ✒️ Typography
-- **Geist**: The app features the **Geist** typeface bundled directly into the core, ensuring crisp, professional typography on every device.
+
+- **Geist**: Bundled directly into core resources to ensure crisp typography across devices.
 
 ### ⚡ Performance
-- **Zero Battery Drain**: The engine sleeps when not visible.
-- **Native Rendering**: Built with Android's native Canvas API for fluid 60fps animations.
+
+- **Zero Idle Drain**: Rendering engine pauses completely when the wallpaper is not visible.
+- **Native Rendering**: Canvas-based rendering with pre-allocated geometry for fluid animations.
 
 ## 🛠️ Usage
 
-1. **Install** the APK from the [Releases](https://github.com/eggmasonvalue/Perspective-Live-Wallpaper/releases/latest) page.
-2. **Open** the Perspective - Live app.
-3. Choose your **Macro** or **Micro** tab.
+1. Download the APK from the [Releases](https://github.com/eggmasonvalue/Perspective-Live-Wallpaper/releases/latest) page.
+2. Open the **Perspective - Live** app.
+3. Select the **Macro** or **Micro** tab.
 4. Tap **Style** to customize shapes, sizes, padding, and colors.
 5. Tap **Set Perspective** to apply the live wallpaper.
+
+## 💻 Development & Building
+
+### Prerequisites
+
+- Android SDK (API 34, Min SDK 28)
+- JDK 17+
+
+### Commands
+
+```bash
+# Build Debug APK
+./gradlew assembleDebug
+
+# Run Unit Tests
+./gradlew test
+
+# Run Static Analysis (Detekt)
+./gradlew detekt
+
+# Run Documentation Linter
+npx markdownlint-cli2 "**/*.md"
+```
 
 ## License
 
