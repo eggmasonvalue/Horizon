@@ -8,6 +8,7 @@ import java.time.LocalDate
  * @property birthDate User's date of birth (required for calculations)
  * @property expectedLifespan Expected lifespan in years (default: 90)
  * @property colorSchemeId ID of the selected color scheme (default: "sage_garden" aka Iconic)
+ * @property isDailyRotationEnabled Whether daily color scheme rotation is active
  * @property lastBirthdayCheck Date when the last birthday check was performed (for notifications/updates)
  * @property isOnboardingComplete Whether the user has completed the onboarding flow
  */
@@ -15,6 +16,7 @@ data class UserPreferences(
     val birthDate: LocalDate,
     val expectedLifespan: Int = 90,
     val colorSchemeId: String = "sage_garden",
+    val isDailyRotationEnabled: Boolean = false,
     val lastBirthdayCheck: LocalDate? = null,
     val isOnboardingComplete: Boolean = false,
     // Day Counter specific fields

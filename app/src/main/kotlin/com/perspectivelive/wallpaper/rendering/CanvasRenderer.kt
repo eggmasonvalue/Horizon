@@ -3,6 +3,7 @@ package com.perspectivelive.wallpaper.rendering
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.Layout
@@ -14,6 +15,7 @@ import com.perspectivelive.wallpaper.data.ColorScheme
 import com.perspectivelive.wallpaper.data.GridConfig
 import com.perspectivelive.wallpaper.data.GridState
 import com.perspectivelive.wallpaper.utils.ColorUtils
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
@@ -24,15 +26,36 @@ class CanvasRenderer(
     private var gridState: GridState,
     val colorScheme: ColorScheme,
     private val screenWidth: Int,
-    private val screenHeight: Int
+    private val screenHeight: Int,
+    customTypeface: Typeface? = null
 ) {
+    companion object {
+        private const val DEFAULT_CONTAINER_PADDING_SCALE = 0.05f
+        private const val DEFAULT_HEALTH_GOAL = 10000f
+        private const val MIN_UNIT_SCALE = 0.5f
+        private const val MAX_UNIT_SCALE = 1.0f
+        private const val TEXT_SIZE_SCALE = 0.40f
+        private const val TEXT_OVERLAY_ALPHA = 200
+        private const val BG_CACHE_INTERVAL_MS = 10_000L
+        private const val MAX_SINGLE_LINE_WIDTH = 10000
+        private const val SAFE_BOUNDS_SCALE = 0.707f
+        private const val PROGRESS_BASE_ALPHA_RATIO = 0.2f
+        private const val FULL_ALPHA = 255
+        private const val THOUSAND_STEPS = 1000
+        private const val RELATIVE_SIZE_SPAN_PROPORTION = 0.6f
+        private const val SQUIRCLE_CORNER_RATIO = 0.22f
+        private const val ROUNDED_CORNER_RATIO = 0.15f
+        private const val RHOMBUS_SCALE = 0.707f
+        private const val RHOMBUS_ROTATION_DEGREES = 45f
+    }
+
     private var gridConfig: GridConfig
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     // Style settings
     private var unitShapeId: String = "rounded_square"
     private var unitScale: Float = 1.0f
-    private var containerPaddingScale: Float = 0.05f
+    private var containerPaddingScale: Float = DEFAULT_CONTAINER_PADDING_SCALE
 
     private var shapeDrawer: ShapeDrawer = RoundedSquareDrawer()
 
@@ -41,12 +64,12 @@ class CanvasRenderer(
     private var cachedBgColor: Int = Color.BLACK
 
     // Health Connect formatting cache
-    private var healthCache: Map<java.time.LocalDate, Float>? = null
-    private var healthGoal: Float = 10000f
+    private var healthCache: Map<LocalDate, Float>? = null
+    private var healthGoal: Float = DEFAULT_HEALTH_GOAL
     private var healthMetric: String = "NONE"
     private var showStatOverlay: Boolean = false
     private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
+        typeface = customTypeface ?: Typeface.DEFAULT_BOLD
     }
 
     init {
@@ -58,7 +81,7 @@ class CanvasRenderer(
         metric: String,
         goal: Float,
         showOverlay: Boolean,
-        cache: Map<java.time.LocalDate, Float>?
+        cache: Map<LocalDate, Float>?
     ) {
         this.healthMetric = metric
         this.healthGoal = goal
@@ -80,7 +103,7 @@ class CanvasRenderer(
         canvas.drawColor(cachedBgColor)
 
         var dotIndex = 0
-        val effectiveSize = gridConfig.dotSize * unitScale.coerceIn(0.5f, 1.0f)
+        val effectiveSize = gridConfig.dotSize * unitScale.coerceIn(MIN_UNIT_SCALE, MAX_UNIT_SCALE)
         val offset = (gridConfig.dotSize - effectiveSize) / 2f
         val startX = gridConfig.offsetX
         val startY = gridConfig.offsetY
@@ -88,9 +111,9 @@ class CanvasRenderer(
 
         // Precompute text styling if overlay is enabled
         if (showStatOverlay && healthMetric != "NONE") {
-            textPaint.textSize = effectiveSize * 0.40f
+            textPaint.textSize = effectiveSize * TEXT_SIZE_SCALE
             textPaint.color = cachedBgColor
-            textPaint.alpha = 200 // Slight transparency for subtlety
+            textPaint.alpha = TEXT_OVERLAY_ALPHA
         }
 
         for (row in 0 until gridConfig.rows) {
@@ -111,7 +134,7 @@ class CanvasRenderer(
 
     private fun updateBackgroundCache() {
         val currentTime = System.currentTimeMillis()
-        if (currentTime - lastBgUpdateMillis > 10_000L || lastBgUpdateMillis == 0L) {
+        if (currentTime - lastBgUpdateMillis > BG_CACHE_INTERVAL_MS || lastBgUpdateMillis == 0L) {
             val hour = LocalDateTime.now().hour
             cachedBgColor = if (colorScheme.isDynamic) {
                 ColorUtils.adaptBackgroundForTimeOfDay(colorScheme.backgroundColor, hour)
@@ -133,7 +156,7 @@ class CanvasRenderer(
         var drawnText: CharSequence? = null
 
         if (p.dotIndex == gridState.currentIndex) {
-            paint.alpha = (255 * p.currentItemOpacity).toInt()
+            paint.alpha = (FULL_ALPHA * p.currentItemOpacity).toInt()
             if (showStatOverlay && healthMetric != "NONE" && healthCache != null) {
                 healthCache?.get(p.itemDate)?.let { value ->
                     drawnText = formatHealthText(value, healthMetric)
@@ -144,7 +167,7 @@ class CanvasRenderer(
             val progress = (value / healthGoal).coerceIn(0f, 1f)
 
             val originalAlpha = Color.alpha(color)
-            val baseAlpha = (originalAlpha * 0.2f).toInt()
+            val baseAlpha = (originalAlpha * PROGRESS_BASE_ALPHA_RATIO).toInt()
             paint.alpha = baseAlpha + ((originalAlpha - baseAlpha) * progress).toInt()
 
             if (showStatOverlay) drawnText = formatHealthText(value, healthMetric)
@@ -155,9 +178,7 @@ class CanvasRenderer(
         shapeDrawer.draw(p.canvas, p.x, p.y, p.size, paint)
 
         drawnText?.let { text ->
-            // Use StaticLayout to measure the exact bounding box of the text.
-            // Using a huge width to force it to be a single line.
-            val maxSingleLineWidth = 10000
+            val maxSingleLineWidth = MAX_SINGLE_LINE_WIDTH
 
             val staticLayout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 StaticLayout.Builder.obtain(text, 0, text.length, textPaint, maxSingleLineWidth)
@@ -170,8 +191,6 @@ class CanvasRenderer(
                 StaticLayout(text, textPaint, maxSingleLineWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false)
             }
 
-            // Calculate the actual exact width of the rendered text line.
-            // Since it's forced on one line, max line width is the text width.
             var actualTextWidth = 0f
             for (i in 0 until staticLayout.lineCount) {
                 val lineWidth = staticLayout.getLineWidth(i)
@@ -181,25 +200,19 @@ class CanvasRenderer(
             }
 
             val actualTextHeight = staticLayout.height.toFloat()
+            val safeBounds = p.size * SAFE_BOUNDS_SCALE
 
-            // Safe inner bounds (inscribed square)
-            val safeBounds = p.size * 0.707f
-
-            // Calculate scale to perfectly fit both dimensions
             val scaleX = if (actualTextWidth > safeBounds) safeBounds / actualTextWidth else 1.0f
             val scaleY = if (actualTextHeight > safeBounds) safeBounds / actualTextHeight else 1.0f
             val scaleFactor = kotlin.math.min(scaleX, scaleY)
 
             p.canvas.save()
-
-            // Translate to the absolute center of the shape
             p.canvas.translate(p.x + p.size / 2f, p.y + p.size / 2f)
 
             if (scaleFactor < 1.0f) {
                 p.canvas.scale(scaleFactor, scaleFactor)
             }
 
-            // Offset the drawing operation by half the layout's width and height so it's perfectly centered
             p.canvas.translate(-actualTextWidth / 2f, -actualTextHeight / 2f)
 
             staticLayout.draw(p.canvas)
@@ -208,11 +221,13 @@ class CanvasRenderer(
     }
 
     private fun formatHealthText(value: Float, metric: String): CharSequence {
-        // No spaces, no newlines. Completely contiguous text strings to ensure single-line layout.
         val (text, suffix) = when (metric) {
             "STEPS" -> {
-                if (value >= 1000) Pair(String.format("%.1f", value / 1000f), "k")
-                else Pair(value.toInt().toString(), "")
+                if (value >= THOUSAND_STEPS) {
+                    Pair(String.format("%.1f", value / THOUSAND_STEPS.toFloat()), "k")
+                } else {
+                    Pair(value.toInt().toString(), "")
+                }
             }
             "CALORIES" -> Pair(value.toInt().toString(), "kcal")
             "DISTANCE" -> Pair(String.format("%.1f", value), "km")
@@ -224,7 +239,7 @@ class CanvasRenderer(
 
         val spannable = SpannableString(text + suffix)
         spannable.setSpan(
-            RelativeSizeSpan(0.6f),
+            RelativeSizeSpan(RELATIVE_SIZE_SPAN_PROPORTION),
             text.length,
             spannable.length,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -237,7 +252,7 @@ class CanvasRenderer(
         gridConfig = calculateGrid()
     }
 
-    fun updateStyle(shapeId: String, scale: Float, paddingScale: Float = 0.05f) {
+    fun updateStyle(shapeId: String, scale: Float, paddingScale: Float = DEFAULT_CONTAINER_PADDING_SCALE) {
         this.unitShapeId = shapeId
         this.unitScale = scale
         this.containerPaddingScale = paddingScale
@@ -268,26 +283,30 @@ class CanvasRenderer(
     private class RhombusDrawer : ShapeDrawer {
         override fun draw(canvas: Canvas, x: Float, y: Float, size: Float, paint: Paint) {
             canvas.save()
-            canvas.rotate(45f, x + size / 2f, y + size / 2f)
-            val scale = 0.707f
+            canvas.rotate(RHOMBUS_ROTATION_DEGREES, x + size / 2f, y + size / 2f)
             val center = size / 2f
-            val halfScaled = (size * scale) / 2f
-            canvas.drawRect(x + center - halfScaled, y + center - halfScaled,
-                            x + center + halfScaled, y + center + halfScaled, paint)
+            val halfScaled = (size * RHOMBUS_SCALE) / 2f
+            canvas.drawRect(
+                x + center - halfScaled,
+                y + center - halfScaled,
+                x + center + halfScaled,
+                y + center + halfScaled,
+                paint
+            )
             canvas.restore()
         }
     }
 
     private class SquircleDrawer : ShapeDrawer {
         override fun draw(canvas: Canvas, x: Float, y: Float, size: Float, paint: Paint) {
-            val radius = size * 0.22f
+            val radius = size * SQUIRCLE_CORNER_RATIO
             canvas.drawRoundRect(x, y, x + size, y + size, radius, radius, paint)
         }
     }
 
     private class RoundedSquareDrawer : ShapeDrawer {
         override fun draw(canvas: Canvas, x: Float, y: Float, size: Float, paint: Paint) {
-            val radius = size * 0.15f
+            val radius = size * ROUNDED_CORNER_RATIO
             canvas.drawRoundRect(x, y, x + size, y + size, radius, radius, paint)
         }
     }

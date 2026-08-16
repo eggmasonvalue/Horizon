@@ -1,12 +1,12 @@
 package com.perspectivelive.wallpaper.service
 
 import android.app.WallpaperColors
-import kotlinx.coroutines.launch
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Canvas
 import android.graphics.Color
 import android.os.Build
@@ -16,12 +16,20 @@ import android.service.wallpaper.WallpaperService
 import android.util.Log
 import android.view.SurfaceHolder
 import androidx.annotation.RequiresApi
+import androidx.core.content.res.ResourcesCompat
+import com.perspectivelive.wallpaper.R
 import com.perspectivelive.wallpaper.data.ColorSchemeProvider
 import com.perspectivelive.wallpaper.data.GridState
 import com.perspectivelive.wallpaper.data.PreferencesManager
 import com.perspectivelive.wallpaper.data.UserPreferences
 import com.perspectivelive.wallpaper.rendering.CanvasRenderer
 import com.perspectivelive.wallpaper.rendering.PulseAnimator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 /**
  * Base WallpaperService that encapsulates common lifecycle, rendering loop, and scheduling logic.
@@ -33,6 +41,14 @@ abstract class BaseWallpaperService : WallpaperService() {
         private const val TAG = "BaseWallpaperService"
         private const val MAX_CONSECUTIVE_ERRORS = 5
         private const val PLACEHOLDER_COLOR = 0xFF0A0A0A.toInt()
+        private const val DEFAULT_PULSE_PERIOD = 2000L
+    }
+
+    private val activeEngines = mutableSetOf<BaseEngine>()
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        activeEngines.forEach { it.onSystemConfigurationChanged(newConfig) }
     }
 
     override fun onCreateEngine(): Engine {
@@ -58,12 +74,13 @@ abstract class BaseWallpaperService : WallpaperService() {
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             try {
                 super.onCreate(surfaceHolder)
+                activeEngines.add(this)
 
                 preferencesManager = PreferencesManager(this@BaseWallpaperService)
                 val pulsePeriod = try {
                     preferencesManager.getPreferences().pulsePeriodMs
                 } catch (e: Exception) {
-                    2000L
+                    DEFAULT_PULSE_PERIOD
                 }
                 animator = PulseAnimator(pulsePeriod)
                 scheduler = MidnightScheduler(this@BaseWallpaperService)
@@ -114,12 +131,13 @@ abstract class BaseWallpaperService : WallpaperService() {
             }
         }
 
+        open fun onSystemConfigurationChanged(newConfig: Configuration) {
+            initializeRendererAsync()
+        }
+
         @RequiresApi(Build.VERSION_CODES.O_MR1)
         override fun onComputeColors(): WallpaperColors? {
             val scheme = renderer?.colorScheme ?: return null
-            // Primary: Past/Future Years (Grey in Iconic)
-            // Secondary: Current Year/Shape (Red in Iconic - breathing shape)
-            // Tertiary: Background (Beige in Iconic)
             return WallpaperColors(
                 Color.valueOf(scheme.pastYearsColor),
                 Color.valueOf(scheme.currentYearColor),
@@ -151,6 +169,7 @@ abstract class BaseWallpaperService : WallpaperService() {
         override fun onDestroy() {
             try {
                 super.onDestroy()
+                activeEngines.remove(this)
                 handler.removeCallbacksAndMessages(null)
                 scheduler.cancel()
 
@@ -176,14 +195,14 @@ abstract class BaseWallpaperService : WallpaperService() {
         }
 
         protected open fun initializeRendererAsync() {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO).launch {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                withContext(Dispatchers.Main) {
                     initializeRenderer()
                 }
             }
         }
 
-        protected open fun initializeRenderer(healthCache: Map<java.time.LocalDate, Float>? = null) {
+        protected open fun initializeRenderer(healthCache: Map<LocalDate, Float>? = null) {
             try {
                 if (!hasPreferences()) {
                     drawPlaceholder()
@@ -192,14 +211,34 @@ abstract class BaseWallpaperService : WallpaperService() {
 
                 val preferences = preferencesManager.getPreferences()
                 val gridState = getGridState(preferences) ?: return
-                val colorScheme = ColorSchemeProvider.getScheme(preferences.colorSchemeId, preferencesManager)
+
+                val activeSchemeId = if (preferences.isDailyRotationEnabled) {
+                    ColorSchemeProvider.getRotatedSchemeId(LocalDate.now())
+                } else {
+                    preferences.colorSchemeId
+                }
+
+                val isDarkMode = ColorSchemeProvider.isSystemDarkMode(this@BaseWallpaperService)
+                val colorScheme = ColorSchemeProvider.getScheme(
+                    id = activeSchemeId,
+                    isDarkMode = isDarkMode,
+                    prefsManager = preferencesManager
+                )
+
+                val typeface = try {
+                    ResourcesCompat.getFont(this@BaseWallpaperService, R.font.geist_bold)
+                        ?: ResourcesCompat.getFont(this@BaseWallpaperService, R.font.geist)
+                } catch (e: Exception) {
+                    null
+                }
 
                 animator.cycleDurationMs = preferences.pulsePeriodMs
                 renderer = CanvasRenderer(
                     gridState = gridState,
                     colorScheme = colorScheme,
                     screenWidth = surfaceWidth,
-                    screenHeight = surfaceHeight
+                    screenHeight = surfaceHeight,
+                    customTypeface = typeface
                 )
 
                 renderer?.updateStyle(

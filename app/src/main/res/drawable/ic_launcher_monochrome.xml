@@ -3,27 +3,30 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Top-Left (Past 1): Solid Nordic Slate -->
+    <!-- Top-Left (Past 1) -->
     <path
-        android:fillColor="#7D9D9C"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.65"
         android:pathData="M 35,30 L 45,30 A 5,5 0 0 1 50,35 L 50,45 A 5,5 0 0 1 45,50 L 35,50 A 5,5 0 0 1 30,45 L 30,35 A 5,5 0 0 1 35,30 Z"/>
 
-    <!-- Top-Right (Past 2): Solid Nordic Slate -->
+    <!-- Top-Right (Past 2) -->
     <path
-        android:fillColor="#7D9D9C"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.65"
         android:pathData="M 63,30 L 73,30 A 5,5 0 0 1 78,35 L 78,45 A 5,5 0 0 1 73,50 L 63,50 A 5,5 0 0 1 58,45 L 58,35 A 5,5 0 0 1 63,30 Z"/>
 
-    <!-- Bottom-Left (Present / Now): Vibrant Coral Accent -->
+    <!-- Bottom-Left (Present / Now) -->
     <path
-        android:fillColor="#E85A4F"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="1.0"
         android:pathData="M 35,58 L 45,58 A 5,5 0 0 1 50,63 L 50,73 A 5,5 0 0 1 45,78 L 35,78 A 5,5 0 0 1 30,73 L 30,63 A 5,5 0 0 1 35,58 Z"/>
 
-    <!-- Bottom-Right (Future): Minimalist Ghost Tile -->
+    <!-- Bottom-Right (Future) -->
     <path
-        android:fillColor="#7D9D9C"
-        android:fillAlpha="0.18"
-        android:strokeColor="#7D9D9C"
-        android:strokeAlpha="0.45"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.15"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.4"
         android:strokeWidth="2"
         android:pathData="M 63,58 L 73,58 A 5,5 0 0 1 78,63 L 78,73 A 5,5 0 0 1 73,78 L 63,78 A 5,5 0 0 1 58,73 L 58,63 A 5,5 0 0 1 63,58 Z"/>
 </vector>
