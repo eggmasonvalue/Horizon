@@ -73,12 +73,12 @@ class DayCounterService : BaseWallpaperService() {
             if (visible) {
                 scheduleNextHealthRefresh()
             } else {
-                cancelHealthRefreshWork()
+                cancelHealthRefreshWork(cancelInFlightJob = false)
             }
         }
 
         override fun onDestroy() {
-            cancelHealthRefreshWork()
+            cancelHealthRefreshWork(cancelInFlightJob = true)
             healthScope.cancel()
             super.onDestroy()
         }
@@ -92,7 +92,7 @@ class DayCounterService : BaseWallpaperService() {
             if (!isHealthEnabled(preferences)) {
                 cachedHealthData.clear()
                 lastHealthRefreshEpochMs = 0L
-                cancelHealthRefreshWork()
+                cancelHealthRefreshWork(cancelInFlightJob = true)
                 return
             }
 
@@ -231,13 +231,14 @@ class DayCounterService : BaseWallpaperService() {
             if (!ignoreThrottle && !forceFullBackfill && !isHealthRefreshDue()) return
 
             healthRefreshJob = healthScope.launch {
-                try {
-                    if (!healthConnectManager.hasPermissions(preferences.healthMetric)) {
-                        Log.d(TAG, "Skipping health refresh because Health Connect permission is missing")
-                        return@launch
-                    }
-                } catch (e: IllegalStateException) {
+                val hasPermission = runCatching {
+                    healthConnectManager.hasPermissions(preferences.healthMetric)
+                }.getOrElse { e ->
                     Log.w(TAG, "Health Connect unavailable during permission check", e)
+                    false
+                }
+                if (!hasPermission) {
+                    Log.d(TAG, "Skipping health refresh because Health Connect permission is missing or unavailable")
                     return@launch
                 }
 
@@ -251,10 +252,17 @@ class DayCounterService : BaseWallpaperService() {
                     fetchStartOverride ?: incrementalRefreshStart(preferences.healthMetric, requiredStart, today)
                 }
 
+                val fetchResult = healthConnectManager.fetchAggregateData(preferences.healthMetric, fetchStart, today)
+                val rawData = fetchResult.getOrElse { error ->
+                    Log.w(TAG, "Failed to fetch Health Connect data for ${preferences.healthMetric}", error)
+                    return@launch
+                }
+
                 val normalizedData = normalizeDateWindow(
                     fetchStart,
                     today,
-                    healthConnectManager.fetchAggregateData(preferences.healthMetric, fetchStart, today)
+                    rawData,
+                    cachedHealthData
                 )
 
                 if (needsFullBackfill) {
@@ -316,12 +324,27 @@ class DayCounterService : BaseWallpaperService() {
         private fun normalizeDateWindow(
             startDate: LocalDate,
             endDate: LocalDate,
-            rawData: Map<LocalDate, Float>
+            rawData: Map<LocalDate, Float>,
+            existingData: Map<LocalDate, Float> = emptyMap()
         ): Map<LocalDate, Float> {
             val normalized = LinkedHashMap<LocalDate, Float>()
+            val today = LocalDate.now()
             var current = startDate
             while (!current.isAfter(endDate)) {
-                normalized[current] = rawData[current] ?: 0f
+                val fetchedVal = rawData[current]
+                val existingVal = existingData[current]
+
+                val finalVal = if (current == today && existingVal != null && existingVal > 0f) {
+                    if (fetchedVal != null && fetchedVal > 0f) {
+                        maxOf(existingVal, fetchedVal)
+                    } else {
+                        existingVal
+                    }
+                } else {
+                    fetchedVal ?: existingVal ?: 0f
+                }
+
+                normalized[current] = finalVal
                 current = current.plusDays(1)
             }
             return normalized
@@ -375,10 +398,12 @@ class DayCounterService : BaseWallpaperService() {
             handler.postDelayed(healthRefreshRunnable, HEALTH_REFRESH_INTERVAL_MS)
         }
 
-        private fun cancelHealthRefreshWork() {
+        private fun cancelHealthRefreshWork(cancelInFlightJob: Boolean = false) {
             handler.removeCallbacks(healthRefreshRunnable)
-            healthRefreshJob?.cancel()
-            healthRefreshJob = null
+            if (cancelInFlightJob) {
+                healthRefreshJob?.cancel()
+                healthRefreshJob = null
+            }
         }
 
         private fun isHealthEnabled(preferences: UserPreferences): Boolean {

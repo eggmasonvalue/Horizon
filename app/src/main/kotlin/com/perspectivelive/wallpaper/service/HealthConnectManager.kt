@@ -25,6 +25,9 @@ class HealthConnectManager(private val context: Context) {
         const val METRIC_DISTANCE = "DISTANCE"
         const val METRIC_SLEEP = "SLEEP"
 
+        private const val METERS_PER_KILOMETER = 1000.0
+        private const val MILLIS_PER_HOUR = 3_600_000f
+
         fun getRequiredPermission(metric: String): String? {
             return when (metric) {
                 METRIC_STEPS -> HealthPermission.getReadPermission(StepsRecord::class)
@@ -57,34 +60,32 @@ class HealthConnectManager(private val context: Context) {
         metric: String,
         startDate: LocalDate,
         endDate: LocalDate
-    ): Map<LocalDate, Float> {
+    ): Result<Map<LocalDate, Float>> = runCatching {
         val result = mutableMapOf<LocalDate, Float>()
-        if (metric == METRIC_NONE) return result
+        if (metric == METRIC_NONE) return@runCatching result
 
-        try {
-            val client = HealthConnectClient.getOrCreate(context)
-            val startDateTime = startDate.atStartOfDay()
-            val endDateTime = endDate.plusDays(1).atStartOfDay()
-            val timeRangeFilter = TimeRangeFilter.between(startDateTime, endDateTime)
+        val client = HealthConnectClient.getOrCreate(context)
+        val startDateTime = startDate.atStartOfDay()
+        val endDateTime = endDate.plusDays(1).atStartOfDay()
+        val timeRangeFilter = TimeRangeFilter.between(startDateTime, endDateTime)
 
-            when (metric) {
-                METRIC_STEPS -> fetchSteps(client, timeRangeFilter, result)
-                METRIC_CALORIES -> fetchCalories(client, timeRangeFilter, result)
-                METRIC_DISTANCE -> fetchDistance(client, timeRangeFilter, result)
-                METRIC_SLEEP -> fetchSleep(client, timeRangeFilter, result)
-            }
-        } catch (e: SecurityException) {
-            Log.e(TAG, "SecurityException fetching data", e)
-        } catch (e: IllegalStateException) {
-            Log.e(TAG, "IllegalStateException fetching data", e)
-        } catch (e: android.os.RemoteException) {
-            Log.e(TAG, "RemoteException fetching data", e)
+        when (metric) {
+            METRIC_STEPS -> fetchSteps(client, timeRangeFilter, result)
+            METRIC_CALORIES -> fetchCalories(client, timeRangeFilter, result)
+            METRIC_DISTANCE -> fetchDistance(client, timeRangeFilter, result)
+            METRIC_SLEEP -> fetchSleep(client, timeRangeFilter, result)
         }
 
-        return result
+        result
+    }.onFailure { e ->
+        Log.e(TAG, "Error fetching aggregate health data for $metric", e)
     }
 
-    private suspend fun fetchSteps(client: HealthConnectClient, filter: TimeRangeFilter, result: MutableMap<LocalDate, Float>) {
+    private suspend fun fetchSteps(
+        client: HealthConnectClient,
+        filter: TimeRangeFilter,
+        result: MutableMap<LocalDate, Float>
+    ) {
         val request = AggregateGroupByPeriodRequest(
             metrics = setOf(StepsRecord.COUNT_TOTAL),
             timeRangeFilter = filter,
@@ -98,7 +99,11 @@ class HealthConnectManager(private val context: Context) {
         }
     }
 
-    private suspend fun fetchCalories(client: HealthConnectClient, filter: TimeRangeFilter, result: MutableMap<LocalDate, Float>) {
+    private suspend fun fetchCalories(
+        client: HealthConnectClient,
+        filter: TimeRangeFilter,
+        result: MutableMap<LocalDate, Float>
+    ) {
         val request = AggregateGroupByPeriodRequest(
             metrics = setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL),
             timeRangeFilter = filter,
@@ -112,7 +117,11 @@ class HealthConnectManager(private val context: Context) {
         }
     }
 
-    private suspend fun fetchDistance(client: HealthConnectClient, filter: TimeRangeFilter, result: MutableMap<LocalDate, Float>) {
+    private suspend fun fetchDistance(
+        client: HealthConnectClient,
+        filter: TimeRangeFilter,
+        result: MutableMap<LocalDate, Float>
+    ) {
         val request = AggregateGroupByPeriodRequest(
             metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
             timeRangeFilter = filter,
@@ -122,11 +131,15 @@ class HealthConnectManager(private val context: Context) {
         for (bucket in response) {
             val date = bucket.startTime.atZone(ZoneId.systemDefault()).toLocalDate()
             val meters = bucket.result[DistanceRecord.DISTANCE_TOTAL]?.inMeters ?: 0.0
-            result[date] = (meters / 1000.0).toFloat()
+            result[date] = (meters / METERS_PER_KILOMETER).toFloat()
         }
     }
 
-    private suspend fun fetchSleep(client: HealthConnectClient, filter: TimeRangeFilter, result: MutableMap<LocalDate, Float>) {
+    private suspend fun fetchSleep(
+        client: HealthConnectClient,
+        filter: TimeRangeFilter,
+        result: MutableMap<LocalDate, Float>
+    ) {
         val request = AggregateGroupByPeriodRequest(
             metrics = setOf(SleepSessionRecord.SLEEP_DURATION_TOTAL),
             timeRangeFilter = filter,
@@ -136,7 +149,7 @@ class HealthConnectManager(private val context: Context) {
         for (bucket in response) {
             val date = bucket.startTime.atZone(ZoneId.systemDefault()).toLocalDate()
             val durationMillis = bucket.result[SleepSessionRecord.SLEEP_DURATION_TOTAL]?.toMillis() ?: 0L
-            result[date] = (durationMillis / (1000f * 60f * 60f))
+            result[date] = (durationMillis / MILLIS_PER_HOUR)
         }
     }
 }
