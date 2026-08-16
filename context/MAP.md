@@ -17,7 +17,7 @@ Root namespace: `com.perspectivelive.wallpaper` in `app/src/main/kotlin/com/pers
 
 | Package | Purpose | Key Classes |
 | --------- | --------- | ------------- |
-| `data` | Models, state, palettes, and persistent storage | `UserPreferences`, `PreferencesManager`, `GridState`, `GridConfig`, `StyleConfig`, `ColorScheme`, `ColorSchemeProvider`, `CustomColorScheme`, `DayCounterMode`, `HealthCacheManager` |
+| `data` | Models, state, palettes, and persistent storage | `UserPreferences`, `PreferencesManager`, `GridState`, `GridConfig`, `StyleConfig`, `ColorScheme`, `ColorSchemeProvider`, `WallpaperTheme`, `CustomColorScheme`, `DayCounterMode`, `HealthCacheManager` |
 | `modules` | Domain business logic and date countdown calculations | `CountdownModule`, `DayCounterModule`, `LifeCalendarModule`, `ModuleRegistry` |
 | `rendering` | Canvas drawing, geometry layout, and animation drivers | `CanvasRenderer`, `GridCalculator`, `PulseAnimator`, `RenderItemParams` |
 | `service` | Android `WallpaperService` lifecycles and background sync | `BaseWallpaperService`, `LifeCalendarService`, `DayCounterService`, `HealthConnectManager`, `MidnightScheduler` |
@@ -28,6 +28,7 @@ Root namespace: `com.perspectivelive.wallpaper` in `app/src/main/kotlin/com/pers
 
 - `app/src/main/AndroidManifest.xml`: Declares wallpaper services (`LifeCalendarService`, `DayCounterService`), permissions (Health Connect, Alarm), and settings activity.
 - `app/src/main/res/font/`: Bundled `Geist` typeface files (`geist_regular.ttf`, `geist_bold.ttf`, `geist.xml`).
+- `design/app_icon.svg`: Master vector app icon (2x2 living grid matrix).
 - `config/detekt/detekt.yml`: Detekt static analysis configuration.
 - `.github/workflows/`: CI/CD workflows for PR builds (`android-pr-build.yml`) and tagged releases (`android-release.yml`).
 - `docs/`: Web landing page and live interactive demo.

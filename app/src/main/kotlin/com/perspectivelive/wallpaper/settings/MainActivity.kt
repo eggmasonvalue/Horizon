@@ -1,5 +1,6 @@
 package com.perspectivelive.wallpaper.settings
 
+import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.app.WallpaperManager
 import android.content.ComponentName
@@ -20,6 +21,7 @@ import com.perspectivelive.wallpaper.R
 import com.perspectivelive.wallpaper.data.ColorSchemeProvider
 import com.perspectivelive.wallpaper.data.DayCounterMode
 import com.perspectivelive.wallpaper.data.PreferencesManager
+import com.perspectivelive.wallpaper.data.StyleConfig
 import com.perspectivelive.wallpaper.data.UserPreferences
 import com.perspectivelive.wallpaper.service.DayCounterService
 import com.perspectivelive.wallpaper.service.LifeCalendarService
@@ -115,7 +117,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupTabs() {
-        // Add tabs with refined labels
         modeTabLayout.addTab(modeTabLayout.newTab().setText("Macro"))
         modeTabLayout.addTab(modeTabLayout.newTab().setText("Micro"))
 
@@ -129,7 +130,6 @@ class MainActivity : AppCompatActivity() {
                     1 -> {
                         lifeCalendarSection.visibility = View.GONE
                         dayCounterSection.visibility = View.VISIBLE
-                        // display logic is handled by observer
                     }
                 }
             }
@@ -147,9 +147,16 @@ class MainActivity : AppCompatActivity() {
         currentBirthDate.text = "Birth Date: ${prefs.birthDate.format(dateFormatter)}"
         currentLifespan.text = "Expected Lifespan: ${prefs.expectedLifespan} years"
 
-        // Note: Using PreferencesManager just to get schemes is fine, or move scheme provider to VM
-        val schemeName = ColorSchemeProvider.getScheme(prefs.colorSchemeId, PreferencesManager(this)).name
-        currentColorScheme.text = "Color Scheme: $schemeName"
+        val isDark = ColorSchemeProvider.isSystemDarkMode(this)
+        val baseSchemeName = ColorSchemeProvider.getScheme(prefs.colorSchemeId, isDark, PreferencesManager(this)).name
+        val displaySchemeText = if (prefs.isDailyRotationEnabled) {
+            val rotatedId = ColorSchemeProvider.getRotatedSchemeId()
+            val rotatedName = ColorSchemeProvider.getScheme(rotatedId, isDark, PreferencesManager(this)).name
+            "Color Scheme: Daily Rotation ($rotatedName)"
+        } else {
+            "Color Scheme: $baseSchemeName"
+        }
+        currentColorScheme.text = displaySchemeText
     }
 
     private fun displayDayCounterSettings(prefs: UserPreferences) {
@@ -165,7 +172,6 @@ class MainActivity : AppCompatActivity() {
             dcEventName.text = "Event: ${prefs.eventName ?: "Not set"}"
             dcEventDate.text = "Event Date: ${prefs.eventDate?.format(dateFormatter) ?: "Not set"}"
 
-            // Calculate and display days remaining from today to event date
             val eventDate = prefs.eventDate
             if (eventDate != null) {
                 val daysRemaining = ChronoUnit.DAYS.between(LocalDate.now(), eventDate)
@@ -179,8 +185,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val schemeName = ColorSchemeProvider.getScheme(prefs.colorSchemeId, PreferencesManager(this)).name
-        dcColorScheme.text = "Color Scheme: $schemeName"
+        val isDark = ColorSchemeProvider.isSystemDarkMode(this)
+        val baseSchemeName = ColorSchemeProvider.getScheme(prefs.colorSchemeId, isDark, PreferencesManager(this)).name
+        val displaySchemeText = if (prefs.isDailyRotationEnabled) {
+            val rotatedId = ColorSchemeProvider.getRotatedSchemeId()
+            val rotatedName = ColorSchemeProvider.getScheme(rotatedId, isDark, PreferencesManager(this)).name
+            "Color Scheme: Daily Rotation ($rotatedName)"
+        } else {
+            "Color Scheme: $baseSchemeName"
+        }
+        dcColorScheme.text = displaySchemeText
     }
 
     private fun setupButtons() {
@@ -253,7 +267,7 @@ class MainActivity : AppCompatActivity() {
     private fun showColorSchemeDialog() {
         val prefs = viewModel.userPreferences.value ?: return
 
-        val config = com.perspectivelive.wallpaper.data.StyleConfig(
+        val config = StyleConfig(
             schemeId = prefs.colorSchemeId,
             shapeId = prefs.unitShapeId,
             scale = prefs.unitScale,
@@ -261,10 +275,11 @@ class MainActivity : AppCompatActivity() {
             pulsePeriodMs = prefs.pulsePeriodMs,
             healthMetric = prefs.healthMetric,
             healthGoal = prefs.healthMetricGoal,
-            showStatOverlay = prefs.showStatOverlay
+            showStatOverlay = prefs.showStatOverlay,
+            isDailyRotationEnabled = prefs.isDailyRotationEnabled
         )
         val bottomSheet = StyleSelectionBottomSheet.newInstance(config, enableHealthSettings = false)
-        bottomSheet.setOnStyleAppliedListener { scheme, newConfig ->
+        bottomSheet.setOnStyleAppliedListener { _, newConfig ->
             viewModel.updateColorScheme(newConfig)
         }
         bottomSheet.show(supportFragmentManager, "StyleSelectionBottomSheet")
@@ -299,7 +314,7 @@ class MainActivity : AppCompatActivity() {
         editText.setText(prefs.eventName ?: "")
         editText.hint = getString(R.string.event_name_hint)
 
-        android.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle(R.string.event_name_label)
             .setView(editText)
             .setPositiveButton("Save") { _, _ ->
@@ -339,7 +354,6 @@ class MainActivity : AppCompatActivity() {
             { _, year, month, dayOfMonth ->
                 val newDate = LocalDate.of(year, month + 1, dayOfMonth)
                 if (!viewModel.updateStartDate(newDate)) {
-                    // Reusing event date error or generic error, or we could add start_date_validation_error
                     Toast.makeText(this, "Start date cannot be after event date", Toast.LENGTH_SHORT).show()
                 }
             },
@@ -352,7 +366,7 @@ class MainActivity : AppCompatActivity() {
     private fun showDayCounterColorSchemeDialog() {
         val prefs = viewModel.userPreferences.value ?: return
 
-        val config = com.perspectivelive.wallpaper.data.StyleConfig(
+        val config = StyleConfig(
             schemeId = prefs.colorSchemeId,
             shapeId = prefs.unitShapeId,
             scale = prefs.unitScale,
@@ -360,10 +374,11 @@ class MainActivity : AppCompatActivity() {
             pulsePeriodMs = prefs.pulsePeriodMs,
             healthMetric = prefs.healthMetric,
             healthGoal = prefs.healthMetricGoal,
-            showStatOverlay = prefs.showStatOverlay
+            showStatOverlay = prefs.showStatOverlay,
+            isDailyRotationEnabled = prefs.isDailyRotationEnabled
         )
         val bottomSheet = StyleSelectionBottomSheet.newInstance(config, enableHealthSettings = true)
-        bottomSheet.setOnStyleAppliedListener { scheme, newConfig ->
+        bottomSheet.setOnStyleAppliedListener { _, newConfig ->
             viewModel.updateColorScheme(newConfig)
         }
         bottomSheet.show(supportFragmentManager, "StyleSelectionBottomSheet")

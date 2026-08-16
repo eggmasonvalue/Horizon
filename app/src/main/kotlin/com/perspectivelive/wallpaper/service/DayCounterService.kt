@@ -85,9 +85,8 @@ class DayCounterService : BaseWallpaperService() {
 
         override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
             super.onSharedPreferenceChanged(sharedPreferences, key)
-            if (!isRenderingVisible) return
-            if (key in HEALTH_RELOAD_ONLY_KEYS) return
-            if (key != null && key !in HEALTH_REFRESH_KEYS) return
+            val shouldIgnoreKey = key in HEALTH_RELOAD_ONLY_KEYS || (key != null && key !in HEALTH_REFRESH_KEYS)
+            if (!isRenderingVisible || shouldIgnoreKey) return
 
             val preferences = runCatching { preferencesManager.getPreferences() }.getOrNull() ?: return
             if (!isHealthEnabled(preferences)) {
@@ -159,9 +158,13 @@ class DayCounterService : BaseWallpaperService() {
         }
 
         override fun performMidnightUpdate(preferences: UserPreferences) {
-            val newState = getGridState(preferences)
-            if (newState != null) {
-                renderer?.updateGridState(newState)
+            if (preferences.isDailyRotationEnabled) {
+                initializeRendererAsync()
+            } else {
+                val newState = getGridState(preferences)
+                if (newState != null) {
+                    renderer?.updateGridState(newState)
+                }
             }
 
             if (isHealthEnabled(preferences)) {
@@ -295,7 +298,9 @@ class DayCounterService : BaseWallpaperService() {
                 val renderCache = cachedHealthData.toMap()
 
                 withContext(Dispatchers.Main) {
-                    val currentPreferences = runCatching { preferencesManager.getPreferences() }.getOrNull() ?: return@withContext
+                    val currentPreferences = runCatching {
+                        preferencesManager.getPreferences()
+                    }.getOrNull() ?: return@withContext
                     if (!isHealthEnabled(currentPreferences)) return@withContext
 
                     renderer?.updateHealthData(

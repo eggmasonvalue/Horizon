@@ -1,7 +1,6 @@
 package com.perspectivelive.wallpaper.data
 
 import android.content.Context
-import com.perspectivelive.wallpaper.data.DayCounterMode
 import android.content.SharedPreferences
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
@@ -18,6 +17,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_BIRTH_DATE = "birth_date"
         private const val KEY_EXPECTED_LIFESPAN = "expected_lifespan"
         private const val KEY_COLOR_SCHEME_ID = "color_scheme_id"
+        private const val KEY_DAILY_ROTATION_ENABLED = "daily_rotation_enabled"
         private const val KEY_LAST_BIRTHDAY_CHECK = "last_birthday_check"
         private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
 
@@ -45,6 +45,16 @@ class PreferencesManager(context: Context) {
         private const val KEY_HEALTH_METRIC = "health_metric"
         private const val KEY_HEALTH_GOAL = "health_goal"
         private const val KEY_SHOW_STAT_OVERLAY = "show_stat_overlay"
+
+        // Defaults
+        private const val DEFAULT_EXPECTED_LIFESPAN = 90
+        private const val DEFAULT_CONTAINER_PADDING_SCALE = 0.05f
+        private const val DEFAULT_UNIT_SCALE = 1.0f
+        private const val DEFAULT_PULSE_PERIOD_MS = 2000L
+        private const val DEFAULT_HEALTH_GOAL = 10000f
+        private const val DEFAULT_CUSTOM_BG = 0xFF000000.toInt()
+        private const val DEFAULT_CUSTOM_PAST_FUTURE = 0xFFFFFFFF.toInt()
+        private const val DEFAULT_CUSTOM_CURRENT = 0xFFFF0000.toInt()
     }
 
     /**
@@ -61,8 +71,10 @@ class PreferencesManager(context: Context) {
             error("Invalid birth date format stored")
         }
 
-        val expectedLifespan = prefs.getInt(KEY_EXPECTED_LIFESPAN, 90)
-        val colorSchemeId = prefs.getString(KEY_COLOR_SCHEME_ID, "sage_garden") ?: "sage_garden"
+        val expectedLifespan = prefs.getInt(KEY_EXPECTED_LIFESPAN, DEFAULT_EXPECTED_LIFESPAN)
+        val colorSchemeId = prefs.getString(KEY_COLOR_SCHEME_ID, ColorSchemeProvider.DEFAULT_SCHEME_ID)
+            ?: ColorSchemeProvider.DEFAULT_SCHEME_ID
+        val isDailyRotationEnabled = prefs.getBoolean(KEY_DAILY_ROTATION_ENABLED, false)
 
         val lastCheckStr = prefs.getString(KEY_LAST_BIRTHDAY_CHECK, null)
         val lastCheck = if (lastCheckStr != null) {
@@ -88,17 +100,18 @@ class PreferencesManager(context: Context) {
 
         val dayCounterMode = prefs.getString(KEY_DAY_COUNTER_MODE, DayCounterMode.STATIC) ?: DayCounterMode.STATIC
         val unitShapeId = prefs.getString(KEY_UNIT_SHAPE_ID, "rounded_square") ?: "rounded_square"
-        val containerPaddingScale = prefs.getFloat(KEY_CONTAINER_PADDING_SCALE, 0.05f)
-        val unitScale = prefs.getFloat(KEY_UNIT_SCALE, 1.0f)
-        val pulsePeriodMs = prefs.getLong(KEY_PULSE_PERIOD_MS, 2000L)
+        val containerPaddingScale = prefs.getFloat(KEY_CONTAINER_PADDING_SCALE, DEFAULT_CONTAINER_PADDING_SCALE)
+        val unitScale = prefs.getFloat(KEY_UNIT_SCALE, DEFAULT_UNIT_SCALE)
+        val pulsePeriodMs = prefs.getLong(KEY_PULSE_PERIOD_MS, DEFAULT_PULSE_PERIOD_MS)
         val healthMetric = prefs.getString(KEY_HEALTH_METRIC, "NONE") ?: "NONE"
-        val healthGoal = prefs.getFloat(KEY_HEALTH_GOAL, 10000f)
+        val healthGoal = prefs.getFloat(KEY_HEALTH_GOAL, DEFAULT_HEALTH_GOAL)
         val showStatOverlay = prefs.getBoolean(KEY_SHOW_STAT_OVERLAY, false)
 
         return UserPreferences(
             birthDate = birthDate,
             expectedLifespan = expectedLifespan,
             colorSchemeId = colorSchemeId,
+            isDailyRotationEnabled = isDailyRotationEnabled,
             lastBirthdayCheck = lastCheck,
             isOnboardingComplete = isOnboardingComplete,
             eventDate = eventDate,
@@ -124,6 +137,7 @@ class PreferencesManager(context: Context) {
             putString(KEY_BIRTH_DATE, preferences.birthDate.toString())
             putInt(KEY_EXPECTED_LIFESPAN, preferences.expectedLifespan)
             putString(KEY_COLOR_SCHEME_ID, preferences.colorSchemeId)
+            putBoolean(KEY_DAILY_ROTATION_ENABLED, preferences.isDailyRotationEnabled)
             if (preferences.lastBirthdayCheck != null) {
                 putString(KEY_LAST_BIRTHDAY_CHECK, preferences.lastBirthdayCheck.toString())
             }
@@ -203,9 +217,9 @@ class PreferencesManager(context: Context) {
 
         return CustomColorScheme(
             name = prefs.getString(KEY_CUSTOM_NAME, "Custom") ?: "Custom",
-            backgroundColor = prefs.getInt(KEY_CUSTOM_BACKGROUND, 0xFF000000.toInt()),
-            pastFutureColor = prefs.getInt(KEY_CUSTOM_PAST_FUTURE, 0xFFFFFFFF.toInt()),
-            currentColor = prefs.getInt(KEY_CUSTOM_CURRENT, 0xFFFF0000.toInt())
+            backgroundColor = prefs.getInt(KEY_CUSTOM_BACKGROUND, DEFAULT_CUSTOM_BG),
+            pastFutureColor = prefs.getInt(KEY_CUSTOM_PAST_FUTURE, DEFAULT_CUSTOM_PAST_FUTURE),
+            currentColor = prefs.getInt(KEY_CUSTOM_CURRENT, DEFAULT_CUSTOM_CURRENT)
         )
     }
 
@@ -214,5 +228,19 @@ class PreferencesManager(context: Context) {
      */
     fun hasCustomColors(): Boolean {
         return prefs.getBoolean(HAS_CUSTOM_COLORS, false)
+    }
+
+    /**
+     * Checks if daily rotation is enabled.
+     */
+    fun isDailyRotationEnabled(): Boolean {
+        return prefs.getBoolean(KEY_DAILY_ROTATION_ENABLED, false)
+    }
+
+    /**
+     * Enables or disables daily rotation.
+     */
+    fun setDailyRotationEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DAILY_ROTATION_ENABLED, enabled).apply()
     }
 }

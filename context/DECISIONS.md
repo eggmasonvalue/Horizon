@@ -2,6 +2,16 @@
 
 Curated record of durable, non-obvious project-level architectural decisions and tradeoffs.
 
+## 2026-08-16 — Paired Light/Dark Theme Model and Deterministic Daily Rotation
+
+Context: The wallpaper color system originally consisted of an ad-hoc collection of disconnected color scheme presets without parity between light and dark modes. Additionally, rotating themes daily needed to work seamlessly across midnight boundaries, device reboots, and configuration changes without storing volatile scheduling state.
+
+Decision: Refactor color schemes into `WallpaperTheme` entities with paired, curated `lightScheme` and `darkScheme` definitions that automatically resolve based on the system's night mode (`Configuration.UI_MODE_NIGHT_YES`). For daily rotation, compute the active theme deterministically via date epoch modulo (`epochDay % rotatableThemes.size`) upon wallpaper initialization and midnight boundary broadcasts.
+
+Tradeoff: Themes must provide balanced light and dark variants rather than standalone arbitrary palettes, but eliminates complex rotation state management and ensures theme consistency across day/night system toggles.
+
+Status: active
+
 ## 2026-04-20 — Health Connect Sync Ownership in DayCounterService
 
 Context: Health Connect metrics (Steps, Calories, Distance, Sleep) are exclusive to the Micro (Day Counter) mode. Centralizing health sync in `BaseWallpaperService` bloated the shared base class and introduced unnecessary Health Connect queries for Macro (Life Calendar) mode.

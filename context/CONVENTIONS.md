@@ -24,6 +24,10 @@ Terse imperative rules for writing and verifying code in Perspective - Live.
 - Keep calculation modules free of Android UI/View dependencies.
 - Use dependency injection through ViewModel factories (`SettingsViewModelFactory`).
 
+## Compatibility & Migrations
+
+- Do not maintain backward compatibility considerations, legacy aliases, deprecated fallbacks, or migration layers anywhere; target current schema and active state directly.
+
 ## State & Persistence
 
 - Keep `UserPreferences` and data models immutable.

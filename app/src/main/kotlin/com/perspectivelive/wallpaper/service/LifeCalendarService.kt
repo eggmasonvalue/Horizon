@@ -28,6 +28,9 @@ class LifeCalendarService : BaseWallpaperService() {
 
         override fun performMidnightUpdate(preferences: UserPreferences) {
             val today = LocalDate.now()
+            if (preferences.isDailyRotationEnabled) {
+                initializeRendererAsync()
+            }
             if (DateCalculator.isBirthdayToday(preferences.birthDate, today)) {
                 val newGridState = GridState.calculate(preferences, today)
                 renderer?.updateGridState(newGridState)

@@ -10,5 +10,6 @@ data class StyleConfig(
     val pulsePeriodMs: Long = 2000L,
     val healthMetric: String = HealthConnectManager.METRIC_NONE,
     val healthGoal: Float = 10000f,
-    val showStatOverlay: Boolean = false
+    val showStatOverlay: Boolean = false,
+    val isDailyRotationEnabled: Boolean = false
 )

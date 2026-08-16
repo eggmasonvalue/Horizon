@@ -40,8 +40,14 @@ class DayCounterModule : CountdownModule {
         return DateCalculator.getNextMidnight()
     }
 
+    companion object {
+        private const val DEFAULT_FUTURE_DAYS = 30L
+    }
+
     override fun validatePreferences(preferences: UserPreferences): Boolean {
-        if (preferences.dayCounterMode == DayCounterMode.NO_TOMORROW || preferences.dayCounterMode == DayCounterMode.VS_YESTERDAY) return true
+        val isMomentumMode = preferences.dayCounterMode == DayCounterMode.NO_TOMORROW ||
+            preferences.dayCounterMode == DayCounterMode.VS_YESTERDAY
+        if (isMomentumMode) return true
 
         val startDate = preferences.countdownStartDate ?: return false
         val eventDate = preferences.eventDate ?: return false
@@ -66,7 +72,7 @@ class DayCounterModule : CountdownModule {
         return when (preferences.dayCounterMode) {
             DayCounterMode.NO_TOMORROW -> currentDate
             DayCounterMode.VS_YESTERDAY -> currentDate
-            else -> preferences.eventDate ?: currentDate.plusDays(30)
+            else -> preferences.eventDate ?: currentDate.plusDays(DEFAULT_FUTURE_DAYS)
         }
     }
 }

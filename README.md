@@ -42,12 +42,13 @@ Customize the aesthetic via the built-in **Style** sheet:
 - **Shape Shifting**: Choose between **Circle**, **Rounded Square**, or **Rhombus** (rotated square).
 - **Density Control**: Adjust grid scale from **0.5x** (airy, minimalist) to **1.0x** (dense, data-rich).
 - **Container Padding**: Fine-tune margins around the grid for device bezels.
-- **Colors**: Defaulting to the **Iconic** palette (Sage/Red/Beige), alongside health presets, system dynamic theming, and custom palettes.
+- **Colors**: Curated streamlined themes (*Iconic*, *Nordic Minimal*, *Warm Sand*, *Glacial Peak*, *Rose Quartz*, *Monochrome Zen*, and Health Connect presets), each with paired light and dark variants switching dynamically based on system theme.
+- **Daily Rotation**: Automatically cycle through rotatable color schemes daily at midnight.
 - **Material You**: Dynamic wallpaper color extraction on supported Android versions.
 
 ### ✒️ Typography
 
-- **Geist**: Bundled directly into core resources to ensure crisp typography across devices.
+- **Geist**: Bundled directly into core resources to ensure crisp typography for health metrics and overlays across devices.
 
 ### ⚡ Performance
 
