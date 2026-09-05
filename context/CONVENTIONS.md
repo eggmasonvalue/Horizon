@@ -39,16 +39,20 @@ Terse imperative rules for writing and verifying code in Perspective - Live.
 ## Live Wallpaper Services
 
 - Extend `BaseWallpaperService` for common surface, visibility, and color-change handling.
+- Disable unused offset notifications and touch events via `setOffsetNotificationsEnabled(false)` and `setTouchEventsEnabled(false)`.
 - Override `onSurfaceDestroyed` to stop animators, coroutines, and scheduled callbacks.
 - Override `onComputeColors` on API 27+ and trigger `notifyColorsChanged` upon palette changes.
+- Pause animation scheduling and render a single static frame when `PowerManager.isPowerSaveMode` is active.
 - Isolate feature-specific background jobs (such as Health Connect polling) to the owning service (`DayCounterService`).
 - Throttle Health Connect refreshes while the wallpaper is visible.
 
 ## Graphics & Rendering
 
 - Use `CanvasRenderer` with `ShapeDrawer` strategies for primitive drawing (Circle, Rounded Square, Rhombus).
-- Pre-allocate Paint, Path, and geometry objects in layout calculation passes rather than inside `onDraw`.
-- Drive breathing pulse animations through `PulseAnimator`.
+- Use `SurfaceHolder.lockHardwareCanvas()` with fallback to software canvas.
+- Set surface frame rate hint via `Surface.setFrameRate` on API 30+.
+- Pre-allocate Paint, Path, geometry objects, and `StaticLayout` text layouts during update passes rather than inside `render()`.
+- Drive breathing pulse animations through `PulseAnimator` paced at 30 FPS.
 
 ## UI & Design
 

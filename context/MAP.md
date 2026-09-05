@@ -19,7 +19,7 @@ Root namespace: `com.perspectivelive.wallpaper` in `app/src/main/kotlin/com/pers
 | --------- | --------- | ------------- |
 | `data` | Models, state, palettes, and persistent storage | `UserPreferences`, `PreferencesManager`, `GridState`, `GridConfig`, `StyleConfig`, `ColorScheme`, `ColorSchemeProvider`, `WallpaperTheme`, `CustomColorScheme`, `DayCounterMode`, `HealthCacheManager` |
 | `modules` | Domain business logic and date countdown calculations | `CountdownModule`, `DayCounterModule`, `LifeCalendarModule`, `ModuleRegistry` |
-| `rendering` | Canvas drawing, geometry layout, and animation drivers | `CanvasRenderer`, `GridCalculator`, `PulseAnimator`, `RenderItemParams` |
+| `rendering` | Canvas drawing, geometry layout, and animation drivers | `CanvasRenderer`, `GridCalculator`, `PulseAnimator` |
 | `service` | Android `WallpaperService` lifecycles and background sync | `BaseWallpaperService`, `LifeCalendarService`, `DayCounterService`, `HealthConnectManager`, `MidnightScheduler` |
 | `settings` | UI layer, ViewModel, bottom sheets, color pickers | `MainActivity`, `SettingsViewModel`, `StyleSelectionBottomSheet`, `PreviewCanvasView`, `ColorCardAdapter`, `ColorSchemeAdapter`, `CustomColorActivity`, `ColorPickerDialog` |
 | `utils` | Date arithmetic and color manipulation utilities | `DateCalculator`, `ColorUtils` |

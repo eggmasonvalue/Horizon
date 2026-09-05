@@ -18,8 +18,8 @@ class PulseAnimator(var cycleDurationMs: Long = 2000L) {
         /** Maximum opacity during the pulse cycle */
         const val MAX_OPACITY = 1.0f
         
-        /** Target frames per second */
-        const val TARGET_FPS = 60
+        /** Target frames per second: 30 FPS saves 50% power and aligns with LTPO displays */
+        const val TARGET_FPS = 30
         
         /** Duration of one frame in milliseconds */
         const val FRAME_DURATION_MS = 1000L / TARGET_FPS
