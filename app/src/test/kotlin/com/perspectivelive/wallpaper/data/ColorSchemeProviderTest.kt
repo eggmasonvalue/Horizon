@@ -93,4 +93,47 @@ class ColorSchemeProviderTest {
         val fallback = ColorSchemeProvider.getScheme("completely_unknown_scheme_id", isDarkMode = false)
         assertEquals("Iconic", fallback.name)
     }
+
+    @Test
+    fun testFourteenDayRotationCycleHasFourteenDistinctThemes() {
+        val startDate = LocalDate.of(2026, 9, 1)
+        val rotatedIds = (0 until 14).map { offset ->
+            ColorSchemeProvider.getRotatedSchemeId(startDate.plusDays(offset.toLong()))
+        }.toSet()
+
+        assertEquals("14 consecutive days should yield exactly 14 unique themes", 14, rotatedIds.size)
+
+        // Day 15 should repeat Day 1
+        val day1 = ColorSchemeProvider.getRotatedSchemeId(startDate)
+        val day15 = ColorSchemeProvider.getRotatedSchemeId(startDate.plusDays(14))
+        assertEquals("Day 15 should cycle back to Day 1", day1, day15)
+    }
+
+    @Test
+    fun testAtmosphereSchemeResolution() {
+        val date = LocalDate.of(2026, 9, 6)
+        val lightAtmosphere = ColorSchemeProvider.getScheme(
+            id = ColorSchemeProvider.ATMOSPHERE_SCHEME_ID,
+            isDarkMode = false,
+            date = date
+        )
+        val darkAtmosphere = ColorSchemeProvider.getScheme(
+            id = ColorSchemeProvider.ATMOSPHERE_SCHEME_ID,
+            isDarkMode = true,
+            date = date
+        )
+
+        assertEquals("Atmosphere", lightAtmosphere.name)
+        assertEquals("Atmosphere", darkAtmosphere.name)
+        assertFalse(lightAtmosphere.isDark)
+        assertTrue(darkAtmosphere.isDark)
+        assertNotEquals(lightAtmosphere.backgroundColor, darkAtmosphere.backgroundColor)
+    }
+
+    @Test
+    fun testTotalThemesCount() {
+        val allThemes = ColorSchemeProvider.getAllThemes()
+        // 14 curated + 4 health connect + 1 atmosphere = 19
+        assertEquals(19, allThemes.size)
+    }
 }

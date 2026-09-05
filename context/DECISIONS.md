@@ -2,6 +2,13 @@
 
 Curated record of durable, non-obvious project-level architectural decisions and tradeoffs.
 
+## 2026-09-06 — Oklch-Based Procedural Theme Generation and Expanded Curated Catalog
+
+Context: The 6-day daily rotation cycle repeated presets too quickly. Generating colors dynamically without strict constraints leads to discordant, low-contrast palettes in non-uniform color spaces (RGB/HSL), while solely hardcoding presets creates maintenance bloat without infinite variety.
+
+Decision: Expand curated rotation to 14 hand-crafted paired themes, and implement a deterministic procedural theme generator (`ProceduralThemeGenerator`) using the perceptually uniform Oklch color space (`OklchColor`). The generator fixes perceptual lightness and chroma invariants (background L 96.5% / 9.5%, past dots L 58%, accent L 62%–72% with golden-angle base hue stepping and complementary offsets) seeded by `LocalDate.toEpochDay()`, producing the dynamic "Atmosphere" theme with evocative naming.
+
+Tradeoff: Requires lightweight color conversions between Oklch, Oklab, and linear sRGB, but eliminates external dependencies, avoids state storage, and guarantees mathematical contrast across all 360 degrees of hue.
 ## 2026-09-05 — Hardware-Accelerated Rendering, 30 FPS Pacing, and Power-Save Idling
 
 Context: The live wallpaper engine previously utilized software-locked canvas (`SurfaceHolder.lockCanvas()`) running at 60 FPS. On modern high-refresh OLED devices (such as Pixel LTPO panels), software rendering forces expensive CPU-to-GPU framebuffer copies (~600 MB/s memory bandwidth) and keeps LTPO displays running at elevated refresh rates. Furthermore, running animations continuously during system Battery Saver depleted battery on low charge.
