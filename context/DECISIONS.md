@@ -2,6 +2,16 @@
 
 Curated record of durable, non-obvious project-level architectural decisions and tradeoffs.
 
+## 2026-09-05 — Hardware-Accelerated Rendering, 30 FPS Pacing, and Power-Save Idling
+
+Context: The live wallpaper engine previously utilized software-locked canvas (`SurfaceHolder.lockCanvas()`) running at 60 FPS. On modern high-refresh OLED devices (such as Pixel LTPO panels), software rendering forces expensive CPU-to-GPU framebuffer copies (~600 MB/s memory bandwidth) and keeps LTPO displays running at elevated refresh rates. Furthermore, running animations continuously during system Battery Saver depleted battery on low charge.
+
+Decision: Switch rendering to hardware-accelerated canvas (`SurfaceHolder.lockHardwareCanvas()`) with software fallback, target 30 FPS (`PulseAnimator.TARGET_FPS = 30`), hint display refresh rates via `Surface.setFrameRate(30f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)` on API 30+, and pause frame scheduling entirely (rendering a single static frame at full opacity) when `PowerManager.isPowerSaveMode` is active. Additionally, disable window manager offset and touch IPC deliveries (`setOffsetNotificationsEnabled(false)`, `setTouchEventsEnabled(false)`).
+
+Tradeoff: Frame rate is capped at 30 FPS rather than matching native display refresh rates (60/90/120Hz), but the visual breathing cycle (2000ms duration) is imperceptible from 60 FPS while halving draw calls and allowing LTPO displays to step down to 30Hz, significantly lowering battery consumption.
+
+Status: active
+
 ## 2026-08-16 — Paired Light/Dark Theme Model and Deterministic Daily Rotation
 
 Context: The wallpaper color system originally consisted of an ad-hoc collection of disconnected color scheme presets without parity between light and dark modes. Additionally, rotating themes daily needed to work seamlessly across midnight boundaries, device reboots, and configuration changes without storing volatile scheduling state.

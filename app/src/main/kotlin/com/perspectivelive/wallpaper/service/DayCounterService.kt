@@ -71,6 +71,10 @@ class DayCounterService : BaseWallpaperService() {
         override fun onVisibilityChanged(visible: Boolean) {
             super.onVisibilityChanged(visible)
             if (visible) {
+                val preferences = runCatching { preferencesManager.getPreferences() }.getOrNull()
+                if (preferences != null && isHealthEnabled(preferences) && isHealthRefreshDue()) {
+                    refreshHealthData()
+                }
                 scheduleNextHealthRefresh()
             } else {
                 cancelHealthRefreshWork(cancelInFlightJob = false)
