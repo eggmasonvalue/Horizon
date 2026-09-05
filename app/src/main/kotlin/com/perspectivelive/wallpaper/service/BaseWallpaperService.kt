@@ -9,11 +9,14 @@ import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.service.wallpaper.WallpaperService
 import android.util.Log
+import android.view.Surface
 import android.view.SurfaceHolder
 import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
@@ -32,8 +35,8 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 /**
- * Base WallpaperService that encapsulates common lifecycle, rendering loop, and scheduling logic.
- * Subclasses need to provide specific state calculation logic.
+ * Base WallpaperService that encapsulates lifecycle, hardware-accelerated rendering,
+ * frame-rate pacing, power-save awareness, and midnight rollover logic.
  */
 abstract class BaseWallpaperService : WallpaperService() {
 
@@ -57,6 +60,7 @@ abstract class BaseWallpaperService : WallpaperService() {
 
     abstract fun createBaseEngine(): BaseEngine
 
+    @Suppress("TooManyFunctions")
     abstract inner class BaseEngine : Engine(), SharedPreferences.OnSharedPreferenceChangeListener {
 
         protected lateinit var preferencesManager: PreferencesManager
@@ -68,67 +72,82 @@ abstract class BaseWallpaperService : WallpaperService() {
         protected var isRenderingVisible: Boolean = false
         protected var surfaceWidth: Int = 0
         protected var surfaceHeight: Int = 0
-        private var consecutiveErrors = 0
         protected var isSafeMode: Boolean = false
+        protected var isPowerSaveMode: Boolean = false
+        protected var lastRenderedDate: LocalDate? = null
 
-        override fun onCreate(surfaceHolder: SurfaceHolder) {
-            try {
-                super.onCreate(surfaceHolder)
-                activeEngines.add(this)
+        private var consecutiveErrors = 0
+        private var cachedTypeface: Typeface? = null
 
-                preferencesManager = PreferencesManager(this@BaseWallpaperService)
-                val pulsePeriod = try {
-                    preferencesManager.getPreferences().pulsePeriodMs
-                } catch (e: Exception) {
-                    DEFAULT_PULSE_PERIOD
+        private val frameRunnable = Runnable {
+            if (!isRenderingVisible || isSafeMode || isPowerSaveMode) return@Runnable
+            drawFrame()
+            scheduleNextFrame()
+        }
+
+        private val updateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == MidnightReceiver.ACTION_UPDATE_WALLPAPER && hasPreferences()) {
+                    lastRenderedDate = LocalDate.now()
+                    performMidnightUpdate(preferencesManager.getPreferences())
+                    scheduler.scheduleMidnightCheck()
                 }
-                animator = PulseAnimator(pulsePeriod)
-                scheduler = MidnightScheduler(this@BaseWallpaperService)
-
-                // Register for preference changes
-                val prefs = getSharedPreferences("life_calendar_prefs", Context.MODE_PRIVATE)
-                prefs.registerOnSharedPreferenceChangeListener(this)
-
-                val filter = IntentFilter(MidnightReceiver.ACTION_UPDATE_WALLPAPER)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    registerReceiver(updateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-                } else {
-                    @Suppress("UnspecifiedRegisterReceiverFlag")
-                    registerReceiver(updateReceiver, filter)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in onCreate", e)
             }
         }
 
-        override fun onSurfaceCreated(holder: SurfaceHolder) {
-            try {
-                super.onSurfaceCreated(holder)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in onSurfaceCreated", e)
+        private val powerSaveReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == PowerManager.ACTION_POWER_SAVE_MODE_CHANGED) {
+                    syncPowerSaveMode()
+                }
             }
+        }
+
+        override fun onCreate(surfaceHolder: SurfaceHolder) {
+            super.onCreate(surfaceHolder)
+            activeEngines.add(this)
+
+            // Disable unnecessary IPC notifications from launcher/window manager
+            setOffsetNotificationsEnabled(false)
+            setTouchEventsEnabled(false)
+
+            preferencesManager = PreferencesManager(this@BaseWallpaperService)
+            val pulsePeriod = runCatching { preferencesManager.getPreferences().pulsePeriodMs }
+                .getOrDefault(DEFAULT_PULSE_PERIOD)
+            animator = PulseAnimator(pulsePeriod)
+            scheduler = MidnightScheduler(this@BaseWallpaperService)
+
+            val prefs = getSharedPreferences("life_calendar_prefs", Context.MODE_PRIVATE)
+            prefs.registerOnSharedPreferenceChangeListener(this)
+
+            registerEngineReceivers()
+            syncPowerSaveMode(forceStaticDrawIfActive = false)
+            scheduler.scheduleMidnightCheck()
         }
 
         override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-            try {
-                super.onSurfaceChanged(holder, format, width, height)
-                surfaceWidth = width
-                surfaceHeight = height
-                initializeRendererAsync()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in onSurfaceChanged", e)
+            super.onSurfaceChanged(holder, format, width, height)
+            surfaceWidth = width
+            surfaceHeight = height
+
+            // Hint display subsystem and LTPO panels to run at 30Hz target frame rate
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                runCatching {
+                    holder.surface.setFrameRate(
+                        PulseAnimator.TARGET_FPS.toFloat(),
+                        Surface.FRAME_RATE_COMPATIBILITY_DEFAULT
+                    )
+                }.onFailure { Log.w(TAG, "Could not set surface frame rate", it) }
             }
+
+            initializeRendererAsync()
         }
 
         override fun onSurfaceDestroyed(holder: SurfaceHolder) {
-            try {
-                super.onSurfaceDestroyed(holder)
-                isRenderingVisible = false
-                handler.removeCallbacksAndMessages(null)
-                scheduler.cancel()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in onSurfaceDestroyed", e)
-            }
+            super.onSurfaceDestroyed(holder)
+            isRenderingVisible = false
+            stopFrameSchedule()
+            renderer = null
         }
 
         open fun onSystemConfigurationChanged(newConfig: Configuration) {
@@ -146,51 +165,47 @@ abstract class BaseWallpaperService : WallpaperService() {
         }
 
         override fun onVisibilityChanged(visible: Boolean) {
-            try {
-                super.onVisibilityChanged(visible)
-                isRenderingVisible = visible
+            super.onVisibilityChanged(visible)
+            isRenderingVisible = visible
 
-                if (visible) {
-                    animator.reset()
-                    if (!isSafeMode) {
-                        initializeRendererAsync()
-                    }
-                    scheduleNextFrame()
-                    scheduler.scheduleMidnightCheck()
-                } else {
-                    handler.removeCallbacksAndMessages(null)
-                    scheduler.cancel()
+            if (visible) {
+                syncPowerSaveMode(forceStaticDrawIfActive = false)
+                animator.reset()
+
+                val today = LocalDate.now()
+                if (lastRenderedDate != null && today != lastRenderedDate) {
+                    lastRenderedDate = today
+                    performMidnightUpdate(preferencesManager.getPreferences())
+                } else if (renderer == null && !isSafeMode) {
+                    initializeRendererAsync()
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in onVisibilityChanged", e)
+
+                if (isPowerSaveMode) {
+                    drawFrame(forcedOpacity = 1.0f)
+                } else {
+                    scheduleNextFrame()
+                }
+            } else {
+                stopFrameSchedule()
             }
         }
 
         override fun onDestroy() {
-            try {
-                super.onDestroy()
-                activeEngines.remove(this)
-                handler.removeCallbacksAndMessages(null)
-                scheduler.cancel()
+            activeEngines.remove(this)
+            stopFrameSchedule()
+            scheduler.cancel()
 
-                val prefs = getSharedPreferences("life_calendar_prefs", Context.MODE_PRIVATE)
-                prefs.unregisterOnSharedPreferenceChangeListener(this)
+            val prefs = getSharedPreferences("life_calendar_prefs", Context.MODE_PRIVATE)
+            prefs.unregisterOnSharedPreferenceChangeListener(this)
+            unregisterEngineReceivers()
 
-                try {
-                    unregisterReceiver(updateReceiver)
-                } catch (e: IllegalArgumentException) {
-                    // Ignore if not registered
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in onDestroy", e)
-            }
+            super.onDestroy()
         }
 
         override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-            // Re-initialize renderer if style/content preferences change
             handler.post {
+                stopFrameSchedule()
                 initializeRendererAsync()
-                scheduleNextFrame()
             }
         }
 
@@ -203,127 +218,186 @@ abstract class BaseWallpaperService : WallpaperService() {
         }
 
         protected open fun initializeRenderer(healthCache: Map<LocalDate, Float>? = null) {
-            try {
-                if (!hasPreferences()) {
-                    drawPlaceholder()
-                    return
-                }
+            if (!hasPreferences()) {
+                drawPlaceholder()
+                return
+            }
 
+            try {
                 val preferences = preferencesManager.getPreferences()
                 val gridState = getGridState(preferences) ?: return
+                setupRendererInstance(preferences, gridState, healthCache)
 
-                val activeSchemeId = if (preferences.isDailyRotationEnabled) {
-                    ColorSchemeProvider.getRotatedSchemeId(LocalDate.now())
-                } else {
-                    preferences.colorSchemeId
-                }
-
-                val isDarkMode = ColorSchemeProvider.isSystemDarkMode(this@BaseWallpaperService)
-                val colorScheme = ColorSchemeProvider.getScheme(
-                    id = activeSchemeId,
-                    isDarkMode = isDarkMode,
-                    prefsManager = preferencesManager
-                )
-
-                val typeface = try {
-                    ResourcesCompat.getFont(this@BaseWallpaperService, R.font.geist_bold)
-                        ?: ResourcesCompat.getFont(this@BaseWallpaperService, R.font.geist)
-                } catch (e: Exception) {
-                    null
-                }
-
-                animator.cycleDurationMs = preferences.pulsePeriodMs
-                renderer = CanvasRenderer(
-                    gridState = gridState,
-                    colorScheme = colorScheme,
-                    screenWidth = surfaceWidth,
-                    screenHeight = surfaceHeight,
-                    customTypeface = typeface
-                )
-
-                renderer?.updateStyle(
-                    preferences.unitShapeId,
-                    preferences.unitScale,
-                    preferences.containerPaddingScale
-                )
                 consecutiveErrors = 0
                 isSafeMode = false
+                lastRenderedDate = LocalDate.now()
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                     notifyColorsChanged()
                 }
 
-                drawFrame()
+                if (isPowerSaveMode) {
+                    drawFrame(forcedOpacity = 1.0f)
+                } else {
+                    drawFrame()
+                    if (isRenderingVisible) {
+                        scheduleNextFrame()
+                    }
+                }
             } catch (e: IllegalStateException) {
-                Log.w(TAG, "State invalid", e)
+                Log.w(TAG, "State invalid during renderer initialization", e)
                 drawPlaceholder()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error initializing renderer", e)
+            } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "Invalid argument initializing renderer", e)
                 handleError()
             }
         }
 
+        private fun setupRendererInstance(
+            preferences: UserPreferences,
+            gridState: GridState,
+            healthCache: Map<LocalDate, Float>?
+        ) {
+            val activeSchemeId = if (preferences.isDailyRotationEnabled) {
+                ColorSchemeProvider.getRotatedSchemeId(LocalDate.now())
+            } else {
+                preferences.colorSchemeId
+            }
+
+            val isDarkMode = ColorSchemeProvider.isSystemDarkMode(this@BaseWallpaperService)
+            val colorScheme = ColorSchemeProvider.getScheme(
+                id = activeSchemeId,
+                isDarkMode = isDarkMode,
+                prefsManager = preferencesManager
+            )
+
+            val typeface = cachedTypeface ?: runCatching {
+                ResourcesCompat.getFont(this@BaseWallpaperService, R.font.geist_bold)
+                    ?: ResourcesCompat.getFont(this@BaseWallpaperService, R.font.geist)
+            }.getOrNull().also { cachedTypeface = it }
+
+            animator.cycleDurationMs = preferences.pulsePeriodMs
+            renderer = CanvasRenderer(
+                gridState = gridState,
+                colorScheme = colorScheme,
+                screenWidth = surfaceWidth,
+                screenHeight = surfaceHeight,
+                customTypeface = typeface
+            ).apply {
+                updateStyle(
+                    preferences.unitShapeId,
+                    preferences.unitScale,
+                    preferences.containerPaddingScale
+                )
+                if (preferences.healthMetric != "NONE") {
+                    updateHealthData(
+                        preferences.healthMetric,
+                        preferences.healthMetricGoal,
+                        preferences.showStatOverlay,
+                        healthCache ?: emptyMap()
+                    )
+                }
+            }
+        }
+
         protected abstract fun hasPreferences(): Boolean
-
         protected abstract fun getGridState(preferences: UserPreferences): GridState?
-
         protected abstract fun performMidnightUpdate(preferences: UserPreferences)
 
         private fun scheduleNextFrame() {
-            if (!isRenderingVisible || isSafeMode) return
-            handler.postDelayed({
-                drawFrame()
-                scheduleNextFrame()
-            }, PulseAnimator.FRAME_DURATION_MS)
+            if (!isRenderingVisible || isSafeMode || isPowerSaveMode) return
+            handler.removeCallbacks(frameRunnable)
+            handler.postDelayed(frameRunnable, PulseAnimator.FRAME_DURATION_MS)
         }
 
-        private fun drawFrame() {
+        private fun stopFrameSchedule() {
+            handler.removeCallbacks(frameRunnable)
+        }
+
+        private fun drawFrame(forcedOpacity: Float? = null) {
             if (renderer == null && !isSafeMode) return
 
             val holder = surfaceHolder
-            var canvas: Canvas? = null
+            if (!holder.surface.isValid) return
 
+            var canvas: Canvas? = null
             try {
-                canvas = holder.lockCanvas()
+                canvas = runCatching { holder.lockHardwareCanvas() }
+                    .getOrElse { holder.lockCanvas() }
+
                 if (canvas != null) {
                     if (isSafeMode) {
                         canvas.drawColor(Color.BLACK)
                     } else {
-                        val pulseOpacity = animator.getCurrentOpacity()
+                        val pulseOpacity = forcedOpacity ?: animator.getCurrentOpacity()
                         renderer?.render(canvas, pulseOpacity)
                     }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in drawFrame", e)
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "Surface state invalid in drawFrame", e)
+                handleError()
+            } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "Drawing argument error in drawFrame", e)
                 handleError()
             } finally {
                 if (canvas != null) {
-                    try {
-                        holder.unlockCanvasAndPost(canvas)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error unlocking canvas", e)
-                    }
+                    runCatching { holder.unlockCanvasAndPost(canvas) }
+                        .onFailure { Log.w(TAG, "Error unlocking canvas", it) }
                 }
             }
         }
 
         protected fun drawPlaceholder() {
             val holder = surfaceHolder
+            if (!holder.surface.isValid) return
+
             var canvas: Canvas? = null
             try {
-                canvas = holder.lockCanvas()
+                canvas = runCatching { holder.lockHardwareCanvas() }
+                    .getOrElse { holder.lockCanvas() }
                 canvas?.drawColor(PLACEHOLDER_COLOR)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error drawing placeholder", e)
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "Error drawing placeholder", e)
             } finally {
                 if (canvas != null) {
-                    try {
-                        holder.unlockCanvasAndPost(canvas)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error unlocking canvas", e)
-                    }
+                    runCatching { holder.unlockCanvasAndPost(canvas) }
+                        .onFailure { Log.w(TAG, "Error unlocking placeholder canvas", it) }
                 }
             }
+        }
+
+        private fun syncPowerSaveMode(forceStaticDrawIfActive: Boolean = true) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val newMode = powerManager?.isPowerSaveMode == true
+            if (newMode != isPowerSaveMode) {
+                isPowerSaveMode = newMode
+                if (isPowerSaveMode) {
+                    stopFrameSchedule()
+                    if (forceStaticDrawIfActive && isRenderingVisible) {
+                        drawFrame(forcedOpacity = 1.0f)
+                    }
+                } else if (isRenderingVisible && !isSafeMode) {
+                    scheduleNextFrame()
+                }
+            }
+        }
+
+        private fun registerEngineReceivers() {
+            val midnightFilter = IntentFilter(MidnightReceiver.ACTION_UPDATE_WALLPAPER)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(updateReceiver, midnightFilter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(updateReceiver, midnightFilter)
+            }
+
+            val powerFilter = IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+            registerReceiver(powerSaveReceiver, powerFilter)
+        }
+
+        private fun unregisterEngineReceivers() {
+            runCatching { unregisterReceiver(updateReceiver) }
+            runCatching { unregisterReceiver(powerSaveReceiver) }
         }
 
         private fun handleError() {
@@ -332,17 +406,6 @@ abstract class BaseWallpaperService : WallpaperService() {
                 Log.e(TAG, "Too many consecutive errors, entering safe mode")
                 isSafeMode = true
                 drawPlaceholder()
-            }
-        }
-
-        private val updateReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == MidnightReceiver.ACTION_UPDATE_WALLPAPER) {
-                    if (hasPreferences()) {
-                        performMidnightUpdate(preferencesManager.getPreferences())
-                        scheduler.scheduleMidnightCheck()
-                    }
-                }
             }
         }
     }

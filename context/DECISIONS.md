@@ -9,6 +9,13 @@ Context: The 6-day daily rotation cycle repeated presets too quickly. Generating
 Decision: Expand curated rotation to 14 hand-crafted paired themes, and implement a deterministic procedural theme generator (`ProceduralThemeGenerator`) using the perceptually uniform Oklch color space (`OklchColor`). The generator fixes perceptual lightness and chroma invariants (background L 96.5% / 9.5%, past dots L 58%, accent L 62%–72% with golden-angle base hue stepping and complementary offsets) seeded by `LocalDate.toEpochDay()`, producing the dynamic "Atmosphere" theme with evocative naming.
 
 Tradeoff: Requires lightweight color conversions between Oklch, Oklab, and linear sRGB, but eliminates external dependencies, avoids state storage, and guarantees mathematical contrast across all 360 degrees of hue.
+## 2026-09-05 — Hardware-Accelerated Rendering, 30 FPS Pacing, and Power-Save Idling
+
+Context: The live wallpaper engine previously utilized software-locked canvas (`SurfaceHolder.lockCanvas()`) running at 60 FPS. On modern high-refresh OLED devices (such as Pixel LTPO panels), software rendering forces expensive CPU-to-GPU framebuffer copies (~600 MB/s memory bandwidth) and keeps LTPO displays running at elevated refresh rates. Furthermore, running animations continuously during system Battery Saver depleted battery on low charge.
+
+Decision: Switch rendering to hardware-accelerated canvas (`SurfaceHolder.lockHardwareCanvas()`) with software fallback, target 30 FPS (`PulseAnimator.TARGET_FPS = 30`), hint display refresh rates via `Surface.setFrameRate(30f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)` on API 30+, and pause frame scheduling entirely (rendering a single static frame at full opacity) when `PowerManager.isPowerSaveMode` is active. Additionally, disable window manager offset and touch IPC deliveries (`setOffsetNotificationsEnabled(false)`, `setTouchEventsEnabled(false)`).
+
+Tradeoff: Frame rate is capped at 30 FPS rather than matching native display refresh rates (60/90/120Hz), but the visual breathing cycle (2000ms duration) is imperceptible from 60 FPS while halving draw calls and allowing LTPO displays to step down to 30Hz, significantly lowering battery consumption.
 
 Status: active
 

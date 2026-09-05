@@ -33,6 +33,7 @@ captures/
 obj/
 
 # Agent & Tools
+.pi/
 .agent/
 .gemini/
 .pi/
