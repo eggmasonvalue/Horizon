@@ -42,8 +42,8 @@ Customize the aesthetic via the built-in **Style** sheet:
 - **Shape Shifting**: Choose between **Circle**, **Rounded Square**, or **Rhombus** (rotated square).
 - **Density Control**: Adjust grid scale from **0.5x** (airy, minimalist) to **1.0x** (dense, data-rich).
 - **Container Padding**: Fine-tune margins around the grid for device bezels.
-- **Colors**: Curated streamlined themes (*Iconic*, *Nordic Minimal*, *Warm Sand*, *Glacial Peak*, *Rose Quartz*, *Monochrome Zen*, and Health Connect presets), each with paired light and dark variants switching dynamically based on system theme.
-- **Daily Rotation**: Automatically cycle through rotatable color schemes daily at midnight.
+- **Colors**: 14 curated paired themes (*Iconic*, *Nordic Minimal*, *Warm Sand*, *Glacial Peak*, *Rose Quartz*, *Monochrome Zen*, *Sumi & Cinnabar*, *Boreal Forest*, *Sahara Dunes*, *Kyoto Celadon*, *Alpenglow*, *Basalt & Ochre*, *Pacific Drift*, *Terracotta Courtyard*), the generative *Atmosphere* theme producing unique daily palettes via perceptual Oklch color math, and dedicated Health Connect presets.
+- **Daily Rotation**: Automatically cycle through rotatable color schemes daily at midnight over a 14-day cycle, or select *Atmosphere* for infinite, unrepeatable daily procedural palettes.
 - **Material You**: Dynamic wallpaper color extraction on supported Android versions.
 
 ### ✒️ Typography

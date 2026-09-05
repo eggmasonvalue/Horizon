@@ -35,6 +35,7 @@ obj/
 # Agent & Tools
 .agent/
 .gemini/
+.pi/
 brain/
 artifacts/
 tools/

@@ -21,6 +21,7 @@ import com.perspectivelive.wallpaper.R
 import com.perspectivelive.wallpaper.data.ColorSchemeProvider
 import com.perspectivelive.wallpaper.data.DayCounterMode
 import com.perspectivelive.wallpaper.data.PreferencesManager
+import com.perspectivelive.wallpaper.data.ProceduralThemeGenerator
 import com.perspectivelive.wallpaper.data.StyleConfig
 import com.perspectivelive.wallpaper.data.UserPreferences
 import com.perspectivelive.wallpaper.service.DayCounterService
@@ -153,6 +154,9 @@ class MainActivity : AppCompatActivity() {
             val rotatedId = ColorSchemeProvider.getRotatedSchemeId()
             val rotatedName = ColorSchemeProvider.getScheme(rotatedId, isDark, PreferencesManager(this)).name
             "Color Scheme: Daily Rotation ($rotatedName)"
+        } else if (prefs.colorSchemeId == ColorSchemeProvider.ATMOSPHERE_SCHEME_ID) {
+            val mood = ProceduralThemeGenerator.getMoodName()
+            "Color Scheme: Atmosphere ($mood)"
         } else {
             "Color Scheme: $baseSchemeName"
         }
@@ -191,6 +195,9 @@ class MainActivity : AppCompatActivity() {
             val rotatedId = ColorSchemeProvider.getRotatedSchemeId()
             val rotatedName = ColorSchemeProvider.getScheme(rotatedId, isDark, PreferencesManager(this)).name
             "Color Scheme: Daily Rotation ($rotatedName)"
+        } else if (prefs.colorSchemeId == ColorSchemeProvider.ATMOSPHERE_SCHEME_ID) {
+            val mood = ProceduralThemeGenerator.getMoodName()
+            "Color Scheme: Atmosphere ($mood)"
         } else {
             "Color Scheme: $baseSchemeName"
         }
